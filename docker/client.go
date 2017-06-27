@@ -1,8 +1,9 @@
 package client
 
 import (
-	cttp "imagepvdr/client/http"
 	"net/http"
+
+	cttp "github.com/WhisperingChaos/client/http"
 
 	dkr "github.com/moby/moby/client"
 )
