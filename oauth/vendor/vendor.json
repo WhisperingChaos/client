@@ -1,0 +1,59 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "Pc2ORQp+VY3Un/dkh4QwLC7R6lE=",
+			"path": "github.com/BurntSushi/toml",
+			"revision": "a368813c5e648fee92e5f6c30e3944ff9d5e8895",
+			"revisionTime": "2017-06-26T11:06:00Z"
+		},
+		{
+			"checksumSHA1": "oiRTqdHjmREwn8SmJ0NKhvRAuVA=",
+			"path": "github.com/WhisperingChaos/client/restyc",
+			"revision": "fb33825af97990e8a5a3e3e86716f6e6ff888f5d",
+			"revisionTime": "2017-06-29T00:07:06Z"
+		},
+		{
+			"checksumSHA1": "xgjylsjDcWDWx+Tl0Eu3OcBG6bk=",
+			"path": "github.com/WhisperingChaos/config",
+			"revision": "e562d0411edf38ee3fdf801e535d924a6dc5703a",
+			"revisionTime": "2017-06-05T19:58:48Z"
+		},
+		{
+			"path": "github.com/WhisperingChaos/config\n",
+			"revision": ""
+		},
+		{
+			"checksumSHA1": "CenSVfMjgtl44pdKzrWMbtu6sAI=",
+			"path": "github.com/WhisperingChaos/errorf",
+			"revision": "049cd1023b92f43f4200ef897f0ce1127e7e88c5",
+			"revisionTime": "2017-05-02T02:52:44Z"
+		},
+		{
+			"checksumSHA1": "n6Inp3wS/HCUMDZA68RTMN1Xlgo=",
+			"path": "github.com/WhisperingChaos/printbuf",
+			"revision": "8fea7d195cb6d94d4031f436ff7f79355b703f55",
+			"revisionTime": "2017-06-05T19:49:25Z"
+		},
+		{
+			"checksumSHA1": "kKKbY4j5CPqs3Efl7KYvbB22elI=",
+			"path": "github.com/WhisperingChaos/terminator",
+			"revision": "341298b1e724becc7ee5dba93f31d6f627359a61",
+			"revisionTime": "2017-04-26T16:04:33Z"
+		},
+		{
+			"checksumSHA1": "+7gSOeJWKSUhXho9cQPtyzJL+ok=",
+			"path": "golang.org/x/net/publicsuffix",
+			"revision": "d4223d6710aad90f892de3ed4f1e7539ccc444a0",
+			"revisionTime": "2017-06-23T20:02:09Z"
+		},
+		{
+			"checksumSHA1": "7iGeRw32zerMe5PFdNdBBUkaqn0=",
+			"path": "gopkg.in/resty.v0",
+			"revision": "cf81ed0a604d373be63b4c036c6b05c06520615f",
+			"revisionTime": "2017-06-22T19:16:15Z"
+		}
+	],
+	"rootPath": "client/oauth"
+}

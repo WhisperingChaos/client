@@ -1,0 +1,37 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "pPH/BoINXxzYDObljpsGZbysMrw=",
+			"path": "github.com/BurntSushi/toml",
+			"revision": "b26d9c308763d68093482582cea63d69be07a0f0",
+			"revisionTime": "2017-03-28T06:15:53Z"
+		},
+		{
+			"checksumSHA1": "xgjylsjDcWDWx+Tl0Eu3OcBG6bk=",
+			"path": "github.com/WhisperingChaos/config",
+			"revision": "e562d0411edf38ee3fdf801e535d924a6dc5703a",
+			"revisionTime": "2017-06-05T19:58:48Z"
+		},
+		{
+			"checksumSHA1": "n6Inp3wS/HCUMDZA68RTMN1Xlgo=",
+			"path": "github.com/WhisperingChaos/printbuf",
+			"revision": "8fea7d195cb6d94d4031f436ff7f79355b703f55",
+			"revisionTime": "2017-06-05T19:49:25Z"
+		},
+		{
+			"checksumSHA1": "O6yCEoGr0NU7ZM60PmyzBG+OC9s=",
+			"path": "golang.org/x/net/publicsuffix",
+			"revision": "dfe83d419c9403b40b19d08cdba2afec27b002f7",
+			"revisionTime": "2017-06-09T23:50:55Z"
+		},
+		{
+			"checksumSHA1": "7iGeRw32zerMe5PFdNdBBUkaqn0=",
+			"path": "gopkg.in/resty.v0",
+			"revision": "cf81ed0a604d373be63b4c036c6b05c06520615f",
+			"revisionTime": "2017-06-22T19:16:15Z"
+		}
+	],
+	"rootPath": "client/restyc"
+}
