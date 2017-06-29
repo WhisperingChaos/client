@@ -2,25 +2,22 @@ package oauth
 
 import (
 	"fmt"
+	"log"
 	"time"
-
-	"github.com/WhisperingChaos/config"
 
 	"github.com/WhisperingChaos/errorf"
 
 	"github.com/WhisperingChaos/terminator"
 
-	enttp "github.com/WhisperingChaos/client/http"
+	enttp "github.com/WhisperingChaos/client/restyc"
 	resty "gopkg.in/resty.v0"
 )
 
 type Opts struct {
-	RootURL         string
-	TLSclient       enttp.TLSclientOpts
-    enttp.Opts	
-	RetryCount      uint8
-	ClientId        string
-	ClientSecret    string
+	RootURL string
+	enttp.Opts
+	ClientId     string
+	ClientSecret string
 }
 
 /*
@@ -50,7 +47,7 @@ func Start(
 	opts Opts, // oauth http connection configuration
 	term terminator.Isync, // a means to terminate the oauth client
 	ef errorf.Iwrap, // a means to report on errorsi
-	debug *log.logger, // debugging agent
+	debug *log.Logger, // debugging agent
 ) func(force bool, // true - force token renewal process to aquire new access token, otherwise, use provided value
 ) (OAuthToken string, // function providing OAuth token
 ) {
@@ -78,7 +75,6 @@ func Start(
 func TokenExpiredRetry(tokenRenewal func(force bool) (OAuthToken string)) resty.RetryConditionFunc {
 	return func(resp *resty.Response) (ok bool, err error) {
 		if resp.StatusCode() == 401 {
-			i
 			dbg.Println("retry issued due to token experation")
 			tokenRenewal(true)
 		}
@@ -154,7 +150,7 @@ func tokenRenewConfig(opts Opts, renew chan<- string, renewForce <-chan bool, er
 			var open bool
 			select {
 			case _, open = <-countDwn.C:
-			case _.open <- renewForce:
+			case _, open = <-renewForce:
 			}
 			if !open {
 				return
@@ -162,7 +158,14 @@ func tokenRenewConfig(opts Opts, renew chan<- string, renewForce <-chan bool, er
 			countDwnCleanUp()
 			dbg.Println("token renewal contact oauth server")
 			respAtTime := time.Now()
-			if token, expire, err := tokenRenewal(opts); err != nil {
+			if token, expire, err := tokenRenewal(opts); err == nil {
+				predictedInterval := predictRenewal(respAtTime, expire)
+				dbg.Printf("token renewal predicted interval: %v\n", predictedInterval)
+				countDwn = time.NewTicker(predictedInterval)
+				dbg.Println("token renewal token: " + token)
+				renew <- token
+				dbg.Println("token renewal pushed token")
+			} else {
 				// unable to retrieve new token. set countDwn interval
 				// to maximum timeout duration then retry.
 				// this causes token requests to block and any other
@@ -170,14 +173,7 @@ func tokenRenewConfig(opts Opts, renew chan<- string, renewForce <-chan bool, er
 				dbg.Println("token renewal failed: " + err.Error())
 				errf.Pln("token renewal failed: " + err.Error())
 				countDwn = time.NewTicker(opts.TimeOutInterval.Duration)
-				continue
 			}
-			predictedInterval := predictRenewal(respAtTime, expire)
-			dbg.Printf("token renewal predicted interval: %v\n", predictedInterval)
-			countDwn = time.NewTicker(predictedInterval)
-			dbg.Println("token renewal token: " + token)
-			renew <- token
-			dbg.Println("token renewal pushed token")
 		}
 	}
 }
@@ -189,7 +185,7 @@ func predictConfg() func(respAtTime time.Time, tokenExpireInterval time.Duration
 		}
 		avgRenewalInterval += time.Since(respAtTime)
 		avgRenewalInterval /= 2
-		var predictRenewal time.Duration = tokenExpireInterval
+		predictRenewal = tokenExpireInterval
 		if tokenExpireInterval > avgRenewalInterval {
 			predictRenewal = tokenExpireInterval - avgRenewalInterval
 		} else {
@@ -201,12 +197,10 @@ func predictConfg() func(respAtTime time.Time, tokenExpireInterval time.Duration
 		return
 	}
 }
-
 func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
 	dbg.Println("OAuth request begin")
 	defer dbg.Println("OAuth requet end")
-	client := enttp.Config(opts.TimeOutInterval.Duration, opts.h:w)
-	Config(opts Opts, tlsOpts TLSclientOpts, client *http.Client) (err error)
+	client := enttp.Config(opts.Opts)
 	const body = "grant_type=client_credentials"
 	var respBody interface{}
 	req := client.R().
