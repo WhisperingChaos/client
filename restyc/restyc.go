@@ -17,7 +17,6 @@ type TLSclientOpts struct {
 }
 
 type Opts struct {
-	RootURL         string
 	TimeOutInterval config.Duration
 	RetryCount      uint8
 	TLSclient       TLSclientOpts
