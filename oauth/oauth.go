@@ -114,7 +114,7 @@ func tokenProvide(opts Opts, needToken chan bool, provider chan<- string, term t
 				select {
 				case token = <-renew:
 					force = false
-					dbg.Println("obtained token from renew channel")
+					dbg.Printf("obtained token: '%s' from renew channel\n", token)
 				case <-term.Chan():
 					return
 				}
@@ -254,8 +254,12 @@ func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
 	return
 }
 func tokenBroker(needToken chan<- bool, provider <-chan string, term terminator.I) func(force bool) (token string) {
-	var ok bool = true
+	ok := true
+	firstTime := true
 	return func(force bool) (token string) {
+		if firstTime {
+			force = firstTime
+		}
 		if term.IsNot() && ok {
 			needToken <- force
 			token, ok = <-provider
