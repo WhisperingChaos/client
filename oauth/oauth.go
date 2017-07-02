@@ -24,8 +24,8 @@ type Opts struct {
 	Configure and start an Oauth2 http client.
 	This client currently manages tokens produced for the "client credential" Oauth2
 	grant type. Management includes acquiring an initial token and predicting its
-	future experation.  It is hoped prediction will reduce the network latency of http
-	requests to a resource server by eliminating the client's token experation failures.
+	future expiration.  It is hoped prediction will reduce the network latency of http
+	requests to a resource server by eliminating the client's token expiration failures.
 
 	Prediction attempts to obtain a new token just before the current one
 	expires.  The algorithm calculates the time to initiate a future
@@ -75,7 +75,7 @@ func Start(
 func TokenExpiredRetry(tokenRenewal func(force bool) (OAuthToken string)) resty.RetryConditionFunc {
 	return func(resp *resty.Response) (ok bool, err error) {
 		if resp.StatusCode() == 401 {
-			dbg.Println("retry issued due to token experation")
+			dbg.Println("retry issued due to token expiration")
 			tokenRenewal(true)
 		}
 		return true, nil
@@ -187,13 +187,13 @@ func predictConfg() func(respAtTime time.Time, tokenExpireInterval time.Duration
 		avgRenewalInterval /= 2
 		dbg.Printf("token renewal network round trip avg: %v\n", avgRenewalInterval)
 		predictRenewal = tokenExpireInterval
-		if tokenExpireInterval > avgRenewalInterval*200 {
-			// twice the average to provide
-			predictRenewal = tokenExpireInterval - avgRenewalInterval*200
+		if tokenExpireInterval > avgRenewalInterval*2 {
+			// twice the average to provide a buffer that ensures completion before token expires
+			predictRenewal = tokenExpireInterval - avgRenewalInterval*2
 		} else if tokenExpireInterval > avgRenewalInterval {
 			predictRenewal = tokenExpireInterval - avgRenewalInterval
 		} else {
-			// acquiring token taking longer than its experation interval
+			// acquiring token taking longer than its expiration interval
 			// probably network problem.  Attempt to obtain next token after
 			// half this new token's lifespan has elapsed
 			predictRenewal /= 2
