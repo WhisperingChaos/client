@@ -185,8 +185,12 @@ func predictConfg() func(respAtTime time.Time, tokenExpireInterval time.Duration
 		}
 		avgRenewalInterval += time.Since(respAtTime)
 		avgRenewalInterval /= 2
+		dbg.Printf("token renewal network round trip avg: %v\n", avgRenewalInterval)
 		predictRenewal = tokenExpireInterval
-		if tokenExpireInterval > avgRenewalInterval {
+		if tokenExpireInterval > avgRenewalInterval*200 {
+			// twice the average to provide
+			predictRenewal = tokenExpireInterval - avgRenewalInterval*200
+		} else if tokenExpireInterval > avgRenewalInterval {
 			predictRenewal = tokenExpireInterval - avgRenewalInterval
 		} else {
 			// acquiring token taking longer than its experation interval
@@ -199,7 +203,7 @@ func predictConfg() func(respAtTime time.Time, tokenExpireInterval time.Duration
 }
 func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
 	dbg.Println("OAuth request begin")
-	defer dbg.Println("OAuth requet end")
+	defer dbg.Println("OAuth request end")
 	client := enttp.Config(opts.Opts)
 	const body = "grant_type=client_credentials"
 	var respBody interface{}
