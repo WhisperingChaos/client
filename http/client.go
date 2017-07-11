@@ -5,8 +5,8 @@ import (
 	"crypto/x509"
 	"io/ioutil"
 	"net/http"
+	"time"
 
-	"github.com/WhisperingChaos/config"
 	errtype "github.com/WhisperingChaos/printbuf"
 )
 
@@ -19,7 +19,7 @@ type TLSclientOpts struct {
 }
 
 type Opts struct {
-	TimeOutInterval config.Duration
+	TimeOutInterval time.Duration
 }
 
 type ConfigFail struct {
@@ -30,18 +30,26 @@ type CertFail struct {
 	errtype.T
 }
 
+/*
+An interface to specify timeout interval and TLS options for golang http package.
+
+TODO:
+Configure retry mechanism?
+
+*/
 func Config(opts Opts, tlsOpts TLSclientOpts, client *http.Client) (err error) {
 	trans := new(http.Transport)
-	trans.TLSHandshakeTimeout = opts.TimeOutInterval.Duration
-	trans.ResponseHeaderTimeout = opts.TimeOutInterval.Duration
+	trans.TLSHandshakeTimeout = opts.TimeOutInterval
+	trans.ResponseHeaderTimeout = opts.TimeOutInterval
 	if !tlsOpts.Disable {
 		err = tlsOptsLoad(tlsOpts, trans)
 	}
 	return
 }
 
-/*
 // private ---------------------------------------------------------------------
+
+/*
 func retryStatusList(resp *resty.Response) (ok bool, err error) {
 	retryStatus := map[int]bool{
 		404: true,
