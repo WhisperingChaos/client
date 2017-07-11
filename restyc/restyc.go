@@ -2,8 +2,7 @@ package restyc
 
 import (
 	"crypto/tls"
-
-	"github.com/WhisperingChaos/config"
+	"time"
 
 	resty "gopkg.in/resty.v0"
 )
@@ -17,7 +16,7 @@ type TLSclientOpts struct {
 }
 
 type Opts struct {
-	TimeOutInterval config.Duration
+	TimeOutInterval time.Duration
 	RetryCount      uint8
 	TLSclient       TLSclientOpts
 }
@@ -27,7 +26,7 @@ func Config(opts Opts) (client *resty.Client) {
 	//client.SetDebug(true)
 	client.AddRetryCondition(retryStatusList).
 		SetRESTMode().
-		SetTimeout(opts.TimeOutInterval.Duration).
+		SetTimeout(opts.TimeOutInterval).
 		SetRetryCount(int(uint(opts.RetryCount)))
 
 	if !opts.TLSclient.Disable {
