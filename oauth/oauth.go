@@ -172,7 +172,7 @@ func tokenRenewConfig(opts Opts, renew chan<- string, renewForce <-chan bool, er
 				// goroutine that depends on an Oauth token.
 				dbg.Println("token renewal failed: " + err.Error())
 				errf.Pln("token renewal failed: " + err.Error())
-				countDwn = time.NewTicker(opts.TimeOutInterval.Duration)
+				countDwn = time.NewTicker(opts.TimeOutInterval)
 			}
 		}
 	}
