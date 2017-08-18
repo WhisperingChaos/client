@@ -13,6 +13,13 @@ import (
 	resty "gopkg.in/resty.v0"
 )
 
+/*
+TODO
+
+  accept token URL path as input to elmininate hard coding
+
+*/
+
 type Opts struct {
 	RootURL string
 	enttp.Opts
