@@ -217,7 +217,7 @@ func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
 	if opts.TLSclient.Disable {
 		url = "http://" + opts.RootURL
 	}
-	url += "/token"
+	url += "/o/token"
 	dbg.Println("OAuth request before post url: " + url)
 	var resp *resty.Response
 	if resp, err = req.Post(url); err != nil {
