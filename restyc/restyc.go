@@ -27,7 +27,8 @@ func Config(opts Opts) (client *resty.Client) {
 	client.AddRetryCondition(retryStatusList).
 		SetRESTMode().
 		SetTimeout(opts.TimeOutInterval).
-		SetRetryCount(int(uint(opts.RetryCount)))
+		SetRetryCount(int(uint(opts.RetryCount))).
+		SetRedirectPolicy(resty.FlexibleRedirectPolicy(3))
 
 	if !opts.TLSclient.Disable {
 		tlsOptsLoad(opts.TLSclient, client)
