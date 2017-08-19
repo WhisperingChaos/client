@@ -3,6 +3,7 @@ package oauth
 import (
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/WhisperingChaos/errorf"
@@ -47,7 +48,7 @@ type Opts struct {
 	access token, as long as the prediciton successfully forecasts the need for a new
 	one.  However, if a client request to its resource server should fail, due to a poor
 	prediction or an event that causes an access token to prematurely expire, the client
-	can force (force=true) the function to return a newly obtained access toke from the
+	can force (force=true) the function to return a newly obtained access token from the
 	the authorization server.
 */
 func Start(
@@ -265,11 +266,15 @@ func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
 	return
 }
 func tokenBroker(needToken chan<- bool, provider <-chan string, term terminator.I) func(force bool) (token string) {
+	mutex := &sync.Mutex{}
 	ok := true
 	firstTime := true
 	return func(force bool) (token string) {
+		mutex.Lock()
+		defer mutex.Unlock()
 		if firstTime {
 			force = firstTime
+			firstTime = false
 		}
 		if term.IsNot() && ok {
 			needToken <- force
