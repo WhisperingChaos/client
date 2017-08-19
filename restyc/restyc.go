@@ -29,10 +29,7 @@ func Config(opts Opts) (client *resty.Client) {
 		SetTimeout(opts.TimeOutInterval).
 		SetRetryCount(int(uint(opts.RetryCount))).
 		SetRedirectPolicy(resty.FlexibleRedirectPolicy(3))
-
-	if !opts.TLSclient.Disable {
-		tlsOptsLoad(opts.TLSclient, client)
-	}
+	tlsOptsLoad(opts.TLSclient, client)
 	return
 }
 
@@ -52,13 +49,15 @@ func retryStatusList(resp *resty.Response) (ok bool, err error) {
 }
 
 func tlsOptsLoad(opts TLSclientOpts, client *resty.Client) {
-	cert, err := tls.LoadX509KeyPair(opts.X509CertificatePath, opts.X509KeyPath)
-	if err != nil {
-		panic("Certificate load failed: " + err.Error())
-	}
-	client.SetCertificates(cert)
-	for _, rtpth := range opts.RootCAStorePath {
-		client.SetRootCertificate(rtpth)
+	if !opts.Disable {
+		cert, err := tls.LoadX509KeyPair(opts.X509CertificatePath, opts.X509KeyPath)
+		if err != nil {
+			panic("Certificate load failed: " + err.Error())
+		}
+		client.SetCertificates(cert)
+		for _, rtpth := range opts.RootCAStorePath {
+			client.SetRootCertificate(rtpth)
+		}
 	}
 	if opts.EnableManMiddleAttack {
 		//  should only be disabled for debugging with self-signed certificates
