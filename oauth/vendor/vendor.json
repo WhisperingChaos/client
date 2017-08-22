@@ -3,38 +3,20 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "Pc2ORQp+VY3Un/dkh4QwLC7R6lE=",
-			"path": "github.com/BurntSushi/toml",
-			"revision": "a368813c5e648fee92e5f6c30e3944ff9d5e8895",
-			"revisionTime": "2017-06-26T11:06:00Z"
-		},
-		{
 			"checksumSHA1": "JCc+DIxTdeh0He0tqpgzdAeDmzE=",
 			"path": "github.com/WhisperingChaos/client/restyc",
 			"revision": "f49787e201b2e55d66ec04fb6d7025bfbca98cdd",
 			"revisionTime": "2017-07-11T15:33:00Z"
 		},
 		{
-			"checksumSHA1": "xgjylsjDcWDWx+Tl0Eu3OcBG6bk=",
-			"path": "github.com/WhisperingChaos/config",
-			"revision": "e562d0411edf38ee3fdf801e535d924a6dc5703a",
-			"revisionTime": "2017-06-05T19:58:48Z"
-		},
-		{
 			"path": "github.com/WhisperingChaos/config\n",
 			"revision": ""
 		},
 		{
-			"checksumSHA1": "CenSVfMjgtl44pdKzrWMbtu6sAI=",
-			"path": "github.com/WhisperingChaos/errorf",
-			"revision": "049cd1023b92f43f4200ef897f0ce1127e7e88c5",
-			"revisionTime": "2017-05-02T02:52:44Z"
-		},
-		{
-			"checksumSHA1": "n6Inp3wS/HCUMDZA68RTMN1Xlgo=",
-			"path": "github.com/WhisperingChaos/printbuf",
-			"revision": "8fea7d195cb6d94d4031f436ff7f79355b703f55",
-			"revisionTime": "2017-06-05T19:49:25Z"
+			"checksumSHA1": "BGX95zQRjIMY0FfbXPW+L2nbNtM=",
+			"path": "github.com/WhisperingChaos/msg",
+			"revision": "addf0a2ac8a28a15c86d8f35796004d6c0c74e2b",
+			"revisionTime": "2017-07-14T18:34:25Z"
 		},
 		{
 			"checksumSHA1": "kKKbY4j5CPqs3Efl7KYvbB22elI=",
