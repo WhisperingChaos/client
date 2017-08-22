@@ -97,7 +97,6 @@ func tokenProvide(opts Opts, needToken chan bool, provider chan<- string, errMsg
 	dbg.P("status='started'")
 	defer dbg.P("status='ended'")
 	defer close(errMsg)
-
 	defer close(needToken)
 	defer close(provider)
 	renew := make(chan string, 1) //two goroutines are interacting one generates an input that results in an output feedback reply.  However, the input and output request cannot be same select, otherwise may spin.  Therefore, make output channel buffered to prohibit blocking behavior in goroutine generating output so the requester can transition to a second select statement that then reads this output.
@@ -126,7 +125,7 @@ func tokenProvide(opts Opts, needToken chan bool, provider chan<- string, errMsg
 				dbg.P("status='force new token'")
 				select {
 				case renewForce <- true:
-				case errMsg <- (<-errRenew): // as frequent as plantery alingment
+				case err = <-errRenew: // as frequent as plantery alingment
 					drainErrorMsg(errRenew)
 					renewForce <- true // if unexpected problem - will block forever
 				case <-term.Chan():
@@ -137,6 +136,7 @@ func tokenProvide(opts Opts, needToken chan bool, provider chan<- string, errMsg
 				case token = <-renew:
 					dbg.Pf("status='obtained token' token='%s'", token)
 				case err = <-errRenew:
+					drainErrorMsg(errMsg)
 					errMsg <- err
 				case <-term.Chan():
 					return
@@ -151,7 +151,9 @@ func tokenProvide(opts Opts, needToken chan bool, provider chan<- string, errMsg
 			}
 		case token = <-renew: // periodic refresh typically before token expires.  Eliminates network lag for future token request.
 			dbg.Pf("status='successful periodic refresh' token='%s'", token)
-		case errMsg <- (<-errRenew):
+		case err := <-errRenew:
+			drainErrorMsg(errMsg)
+			errMsg <- err
 		case <-term.Chan():
 			return
 		}
