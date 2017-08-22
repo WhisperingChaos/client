@@ -41,9 +41,7 @@ func Config(opts Opts, tlsOpts TLSclientOpts, client *http.Client) (err error) {
 	trans := new(http.Transport)
 	trans.TLSHandshakeTimeout = opts.TimeOutInterval
 	trans.ResponseHeaderTimeout = opts.TimeOutInterval
-	if !tlsOpts.Disable {
-		err = tlsOptsLoad(tlsOpts, trans)
-	}
+	err = tlsOptsLoad(tlsOpts, trans)
 	return
 }
 
@@ -66,29 +64,30 @@ func retryStatusList(resp *resty.Response) (ok bool, err error) {
 func tlsOptsLoad(opts TLSclientOpts, trans *http.Transport) error {
 	var certFail CertFail
 	var cfg tls.Config
-
-	if cert, err := tls.LoadX509KeyPair(opts.X509CertificatePath, opts.X509KeyPath); err != nil {
-		certFail.Sprintln(err.Error())
-		return certFail
-	} else {
-		// provide client connection's certificate chain for consumption by server
-		cfg.Certificates = append(cfg.Certificates, cert)
-	}
-	if len(opts.RootCAStorePath) > 0 {
-		// process user supplied root CA to validate server's certificate
-		pool := x509.NewCertPool()
-		var atLeastOne bool
-		for _, rtpth := range opts.RootCAStorePath {
-			if caCert, err := ioutil.ReadFile(rtpth); err != nil {
-				certFail.Sprintln(err.Error())
-				continue
-			} else if pool.AppendCertsFromPEM(caCert) {
-				atLeastOne = true
-			}
-		}
-		if !atLeastOne {
-			certFail.Sprintf("Could not find at least one valid CA for client certificate. Checked following: %v\n", opts.RootCAStorePath)
+	if !opts.Disable {
+		if cert, err := tls.LoadX509KeyPair(opts.X509CertificatePath, opts.X509KeyPath); err != nil {
+			certFail.Sprintln(err.Error())
 			return certFail
+		} else {
+			// provide client connection's certificate chain for consumption by server
+			cfg.Certificates = append(cfg.Certificates, cert)
+		}
+		if len(opts.RootCAStorePath) > 0 {
+			// process user supplied root CA to validate server's certificate
+			pool := x509.NewCertPool()
+			var atLeastOne bool
+			for _, rtpth := range opts.RootCAStorePath {
+				if caCert, err := ioutil.ReadFile(rtpth); err != nil {
+					certFail.Sprintln(err.Error())
+					continue
+				} else if pool.AppendCertsFromPEM(caCert) {
+					atLeastOne = true
+				}
+			}
+			if !atLeastOne {
+				certFail.Sprintf("Could not find at least one valid CA for client certificate. Checked following: %v\n", opts.RootCAStorePath)
+				return certFail
+			}
 		}
 	}
 	if opts.EnableManMiddleAttack {
