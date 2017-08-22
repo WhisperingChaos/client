@@ -1,0 +1,13 @@
+{
+	"comment": "",
+	"ignore": "",
+	"package": [
+		{
+			"checksumSHA1": "n6Inp3wS/HCUMDZA68RTMN1Xlgo=",
+			"path": "github.com/WhisperingChaos/printbuf",
+			"revision": "8fea7d195cb6d94d4031f436ff7f79355b703f55",
+			"revisionTime": "2017-06-05T19:49:25Z"
+		}
+	],
+	"rootPath": "client/http"
+}
