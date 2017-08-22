@@ -2,15 +2,13 @@ package oauth
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
-
-	"github.com/WhisperingChaos/errorf"
 
 	"github.com/WhisperingChaos/terminator"
 
 	enttp "github.com/WhisperingChaos/client/restyc"
+	"github.com/WhisperingChaos/msg"
 	resty "gopkg.in/resty.v0"
 )
 
@@ -39,11 +37,11 @@ type Opts struct {
 	expires.  The algorithm calculates the time to initiate a future
 	new token request by subtracting the average round trip time necessary
 	to obtain a token from the token's lifespan.  A countdown
-	timer is initialized with this interval and when spent, triggers a request
+	timer is initialized with twice this interval and when spent, triggers a request
 	addressed to the authentication server to obtain a new token.
 
 	The ability to access the mechanics mentioned above is encapsulated within the
-	function: func(force bool) (OauthToken string) returned by Start.  The value of
+	function: func(force bool) (OauthToken string, err error) returned by Start.  The value of
 	"force" should typically be 'false'.  This setting almost always retrieves a valid
 	access token, as long as the prediciton successfully forecasts the need for a new
 	one.  However, if a client request to its resource server should fail, due to a poor
@@ -54,20 +52,19 @@ type Opts struct {
 func Start(
 	opts Opts, // oauth http connection configuration
 	term terminator.Isync, // a means to terminate the oauth client
-	ef errorf.Iwrap, // a means to report on errorsi
-	debug *log.Logger, // debugging agent
+	debug msg.I, // debugging agent
 ) func(force bool, // true - force token renewal process to aquire new access token, otherwise, use provided value
 ) (OAuthToken string, // function providing OAuth token
+	err error, // return potential error
+
 ) {
 	needToken := make(chan bool)
 	provider := make(chan string)
+	errMsg := make(chan error, 1)
 	term.Add(1)
-	errf := ef(nil)
-	if debug != nil {
-		dbg = debug
-	}
-	go tokenProvide(opts, needToken, provider, term, errf)
-	return tokenBroker(needToken, provider, term)
+	dbgAssign(&dbg, debug)
+	go tokenProvide(opts, needToken, provider, errMsg, term)
+	return tokenBroker(needToken, provider, errMsg, term)
 }
 
 /*
@@ -80,28 +77,36 @@ func Start(
 	an http status code of 401.
 	(see https://tools.ietf.org/html/rfc6749 5.2. Error Response).
 */
-func TokenExpiredRetry(tokenRenewal func(force bool) (OAuthToken string)) resty.RetryConditionFunc {
-	return func(resp *resty.Response) (ok bool, err error) {
-		if resp.StatusCode() == 401 {
-			dbg.Println("retry issued due to token expiration")
-			tokenRenewal(true)
+func TokenExpiredRetry(tokenRenewal func(force bool) (OAuthToken string, err error)) resty.RetryConditionFunc {
+	return func(resp *resty.Response) (attemptRetry bool, err error) {
+		if resp.StatusCode() != 401 {
+			// didn't attempt retry
+			return
 		}
-		return true, nil
+		attemptRetry = true
+		dbg.P("status='retry issued due to token expiration'")
+		_, err = tokenRenewal(true)
+		return
 	}
 }
 
 // private ---------------------------------------------------------------------
 
-func tokenProvide(opts Opts, needToken chan bool, provider chan<- string, term terminator.Isync, errf errorf.I) {
+func tokenProvide(opts Opts, needToken chan bool, provider chan<- string, errMsg chan error, term terminator.Isync) {
 	defer term.Done()
-	defer dbg.Println("Token refresh goroutine exited")
+	dbg.P("status='started'")
+	defer dbg.P("status='ended'")
+	defer close(errMsg)
+
 	defer close(needToken)
 	defer close(provider)
 	renew := make(chan string, 1) //two goroutines are interacting one generates an input that results in an output feedback reply.  However, the input and output request cannot be same select, otherwise may spin.  Therefore, make output channel buffered to prohibit blocking behavior in goroutine generating output so the requester can transition to a second select statement that then reads this output.
 	defer close(renew)
+	errRenew := make(chan error, 1)
+	defer close(errRenew)
 	renewForce := make(chan bool)
 	defer close(renewForce)
-	renewToken := tokenRenewConfig(opts, renew, renewForce, errf)
+	renewToken := tokenRenewConfig(opts, renew, renewForce, errRenew)
 	go renewToken()
 	var token string
 	for term.IsNot() {
@@ -110,48 +115,57 @@ func tokenProvide(opts Opts, needToken chan bool, provider chan<- string, term t
 			if !ok {
 				return
 			}
-			dbg.Println("token requested")
-			for force {
-				dbg.Println("force new token")
+			dbg.Pf("status='token requested' force=%t", force)
+			var err error
+			if force {
+				// a force requests the immediate aquisition of a token therefore
+				// eliminate error messages produced before this request as they
+				// refer to errors that occurred before its initiation
+				drainErrorMsg(errMsg)
+				drainErrorMsg(errRenew)
+				dbg.P("status='force new token'")
 				select {
 				case renewForce <- true:
+				case errMsg <- (<-errRenew): // as frequent as plantery alingment
+					drainErrorMsg(errRenew)
+					renewForce <- true // if unexpected problem - will block forever
 				case <-term.Chan():
 					return
 				}
-				dbg.Println("waiting for renew")
+				dbg.P("status='waiting for forced renew'")
 				select {
 				case token = <-renew:
-					force = false
-					dbg.Printf("obtained token: '%s' from renew channel\n", token)
+					dbg.Pf("status='obtained token' token='%s'", token)
+				case err = <-errRenew:
+					errMsg <- err
 				case <-term.Chan():
 					return
 				}
+				drainTokenRequests(needToken) // discards token requests issued while attempting to acquiring another one via long running process.  Don't want to spin.
 			}
-			dbg.Println("renew complete")
-			select {
-			case <-needToken: // discards token requests issued while aquiring the most recent one.  Don't want to spin.
-			default:
+			dbg.P("status='renew complete'")
+			if err == nil {
+				dbg.Pf("status='pushing token to requester' token='%s'", token)
+				provider <- token
+				dbg.Pf("status='requester received token' token='%s'", token)
 			}
-			dbg.Printf("pushing token: '%s', back to requester\n", token)
-			provider <- token
-			dbg.Println("requester received token")
-
 		case token = <-renew: // periodic refresh typically before token expires.  Eliminates network lag for future token request.
-			dbg.Println("periodic refreshed token:  " + token)
+			dbg.Pf("status='successful periodic refresh' token='%s'", token)
+		case errMsg <- (<-errRenew):
 		case <-term.Chan():
-
+			return
 		}
 	}
 }
-func tokenRenewConfig(opts Opts, renew chan<- string, renewForce <-chan bool, errf errorf.I) func() {
+func tokenRenewConfig(opts Opts, renew chan<- string, renewForce <-chan bool, errMsg chan<- error) func() {
 	return func() {
-		defer dbg.Println("token renewal goroutine exited")
+		dbg.P("status='token renewal started'")
+		defer dbg.P("status='token renewal goroutine exited'")
 		var countDwn *time.Ticker
 		countDwnCleanUp := func() {
 			countDwn.Stop()
 		}
 		predictRenewal := predictConfg()
-		dbg.Println("token renewal started")
 		countDwn = time.NewTicker(48 * time.Hour) // bogus initial timer.  go routine is idle until renewForce causes first Oauth2 token query.
 		defer countDwnCleanUp()
 		for {
@@ -164,22 +178,29 @@ func tokenRenewConfig(opts Opts, renew chan<- string, renewForce <-chan bool, er
 				return
 			}
 			countDwnCleanUp()
-			dbg.Println("token renewal contact oauth server")
+			dbg.P("status='token renewal contact oauth server'")
 			respAtTime := time.Now()
 			if token, expire, err := tokenRenewal(opts); err == nil {
 				predictedInterval := predictRenewal(respAtTime, expire)
-				dbg.Printf("token renewal predicted interval: %v\n", predictedInterval)
+				dbg.Pf("status='token renewal predicted interval' interval=%v", predictedInterval)
 				countDwn = time.NewTicker(predictedInterval)
-				dbg.Println("token renewal token: " + token)
+				dbg.Pf("status='token renewal pushing token' token='%s'", token)
 				renew <- token
-				dbg.Println("token renewal pushed token")
+				dbg.Pf("status='token renewal pushed token' token='%s'", token)
 			} else {
+				dbg.Pf("status='token renewal failed' error=(%s)", err.Error())
+				// send error msg channel to unblock and deliver error message to
+				// routines dependent on this one.  Note below works because
+				// error channel buffers at least one message, so message isn't forgotten,
+				// and if more than one message, it discards next one so it doesn't
+				// block.  Of course more recent discarded message may be more insightful
+				// but for now not worth the effort.
+				select {
+				case errMsg <- fmt.Errorf("status='token renewal failed' error=(%s)", err.Error()):
+				default:
+				}
 				// unable to retrieve new token. set countDwn interval
 				// to maximum timeout duration then retry.
-				// this causes token requests to block and any other
-				// goroutine that depends on an Oauth token.
-				dbg.Println("token renewal failed: " + err.Error())
-				errf.Pln("token renewal failed: " + err.Error())
 				countDwn = time.NewTicker(opts.TimeOutInterval)
 			}
 		}
@@ -193,7 +214,7 @@ func predictConfg() func(respAtTime time.Time, tokenExpireInterval time.Duration
 		}
 		avgRenewalInterval += time.Since(respAtTime)
 		avgRenewalInterval /= 2
-		dbg.Printf("token renewal network round trip avg: %v\n", avgRenewalInterval)
+		dbg.Pf("status='token renewal computed network round trip avg' avgRenewalInterval=%v", avgRenewalInterval)
 		predictRenewal = tokenExpireInterval
 		if tokenExpireInterval > avgRenewalInterval*2 {
 			// twice the average to provide a buffer that ensures completion before token expires
@@ -210,8 +231,8 @@ func predictConfg() func(respAtTime time.Time, tokenExpireInterval time.Duration
 	}
 }
 func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
-	dbg.Println("OAuth request begin")
-	defer dbg.Println("OAuth request end")
+	dbg.P("status='OAuth request begin'")
+	defer dbg.P("status='OAuth request end'")
 	client := enttp.Config(opts.Opts)
 	const body = "grant_type=client_credentials"
 	var respBody interface{}
@@ -222,11 +243,12 @@ func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
 		SetBasicAuth(opts.ClientId, opts.ClientSecret)
 
 	url := "https://" + opts.RootURL
+	/* debug
 	if opts.TLSclient.Disable {
 		url = "http://" + opts.RootURL
 	}
-	url += "/o/token"
-	dbg.Println("OAuth request before post url: " + url)
+	*/
+	url += "/o/token/"
 	var resp *resty.Response
 	if resp, err = req.Post(url); err != nil {
 		err = fmt.Errorf("OAuth Post reply failed: '%s'", err.Error())
@@ -236,7 +258,7 @@ func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
 		err = fmt.Errorf("No response from server.")
 		return
 	}
-	dbg.Printf("OAuth request after post status code: %d\n", resp.StatusCode())
+	dbg.Pf("status='OAuth request after post'  StatusCode=%d Status='%s'", resp.StatusCode(), resp.Status())
 	if !(resp.StatusCode() > 199 && resp.StatusCode() < 300) {
 		err = fmt.Errorf("OAuth Post reply failed: Status: '%s'", resp.Status())
 		return
@@ -248,10 +270,10 @@ func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
 		return
 	}
 	if token, ok = respMap["access_token"].(string); !ok {
-		err = fmt.Errorf("OAuth 'access_token' absent from response.")
+		err = fmt.Errorf("status='OAuth access_token absent from response'")
 		return
 	}
-	dbg.Println("OAuth token: " + token)
+	dbg.Pf("status='aquire token' token='%s'", token)
 	var expiresIn float64
 	if expiresIn, ok = respMap["expires_in"].(float64); !ok {
 		err = fmt.Errorf("OAuth 'expires_in' absent from response.")
@@ -262,35 +284,65 @@ func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
 		// interval should never be less than 1 second
 		interval = 1 * time.Second
 	}
-	dbg.Printf("OAuth expire interval: %v\n", interval)
+	dbg.Pf("status='success' tokenExpireInterval=%v", interval)
 	return
 }
-func tokenBroker(needToken chan<- bool, provider <-chan string, term terminator.I) func(force bool) (token string) {
+func tokenBroker(needToken chan<- bool, provider <-chan string, errMsg <-chan error, term terminator.I) func(force bool) (token string, err error) {
 	mutex := &sync.Mutex{}
 	ok := true
 	firstTime := true
-	return func(force bool) (token string) {
+	return func(force bool) (token string, err error) {
 		mutex.Lock()
 		defer mutex.Unlock()
 		if firstTime {
-			force = firstTime
+			force = true
 			firstTime = false
 		}
-		if term.IsNot() && ok {
-			needToken <- force
-			token, ok = <-provider
+		if !term.IsNot() || !ok {
+			err = fmt.Errorf("Unable to obtain token - token retrieval process terminated")
+			return
+		}
+		needToken <- force
+		select {
+		case token, ok = <-provider:
+		case err = <-errMsg:
+			return
+		case <-term.Chan():
+			err = fmt.Errorf("Unable to obtain token - token retrieval process terminated")
 		}
 		return
 	}
 }
-
-var dbg *log.Logger = debugNull()
-
-type nullog struct{}
-
-func (*nullog) Write(p []byte) (int, error) {
-	return len(p), nil
+func drainErrorMsg(errMsg <-chan error) {
+	for {
+		select {
+		case _, ok := <-errMsg:
+			if !ok {
+				return
+			}
+		default:
+			return
+		}
+	}
 }
-func debugNull() *log.Logger {
-	return log.New(new(nullog), "", 0)
+func drainTokenRequests(token <-chan bool) {
+	for {
+		select {
+		case _, ok := <-token:
+			if !ok {
+				return
+			}
+		default:
+			return
+		}
+	}
+}
+
+var dbg msg.I = msg.NewDiscard()
+
+func dbgAssign(lhs *msg.I, rhs msg.I) {
+	if rhs == nil {
+		return
+	}
+	*lhs = rhs
 }
