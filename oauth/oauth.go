@@ -232,6 +232,65 @@ func predictConfg() func(respAtTime time.Time, tokenExpireInterval time.Duration
 		return
 	}
 }
+
+/*
+func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
+	dbg.P("status='OAuth request begin'")
+	defer dbg.P("status='OAuth request end'")
+	client := enttp.Config(opts.Opts)
+	const altOauthPayload = "grant_type=client_credentials&client_id=%s&client_secret=%s"
+	body := fmt.Sprintf(altOauthPayload, opts.ClientId, opts.ClientSecret)
+	var respBody interface{}
+	req := client.R().
+		SetHeader("Content-type", "application/x-www-form-urlencoded").
+		SetBody(body).
+		SetResult(&respBody)
+
+	url := "https://" + opts.RootURL
+	if opts.TLSclient.Disable {
+		url = "http://" + opts.RootURL
+	}
+	url += "/o/token/"
+	var resp *resty.Response
+	if resp, err = req.Post(url); err != nil {
+		err = fmt.Errorf("OAuth Post reply failed: '%s'", err.Error())
+		return
+	}
+	if resp == nil {
+		err = fmt.Errorf("No response from server.")
+		return
+	}
+	dbg.Pf("status='OAuth request after post'  StatusCode=%d Status='%s'", resp.StatusCode(), resp.Status())
+	if !(resp.StatusCode() > 199 && resp.StatusCode() < 300) {
+		err = fmt.Errorf("OAuth Post reply failed: Status: '%s'", resp.Status())
+		return
+	}
+	var ok bool
+	var respMap map[string]interface{}
+	if respMap, ok = respBody.(map[string]interface{}); !ok {
+		err = fmt.Errorf("Response body type not expected map type.")
+		return
+	}
+	if token, ok = respMap["access_token"].(string); !ok {
+		err = fmt.Errorf("status='OAuth access_token absent from response'")
+		return
+	}
+	dbg.Pf("status='aquire token' token='%s'", token)
+	var expiresIn float64
+	if expiresIn, ok = respMap["expires_in"].(float64); !ok {
+		err = fmt.Errorf("OAuth 'expires_in' absent from response.")
+		return
+	}
+	interval = time.Duration(expiresIn) * time.Second
+	if interval < 1*time.Second {
+		// interval should never be less than 1 second
+		interval = 1 * time.Second
+	}
+	dbg.Pf("status='success' tokenExpireInterval=%v", interval)
+	return
+}
+*/
+
 func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
 	dbg.P("status='OAuth request begin'")
 	defer dbg.P("status='OAuth request end'")
@@ -289,6 +348,7 @@ func tokenRenewal(opts Opts) (token string, interval time.Duration, err error) {
 	dbg.Pf("status='success' tokenExpireInterval=%v", interval)
 	return
 }
+
 func tokenBroker(needToken chan<- bool, provider <-chan string, errMsg <-chan error, term terminator.I) func(force bool) (token string, err error) {
 	mutex := &sync.Mutex{}
 	ok := true
